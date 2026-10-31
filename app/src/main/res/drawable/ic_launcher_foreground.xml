@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Bingkai klip video -->
+    <path
+        android:fillColor="#8B5CF6"
+        android:pathData="M24,28h60c3.3,0 6,2.7 6,6v40c0,3.3 -2.7,6 -6,6H24c-3.3,0 -6,-2.7 -6,-6V34c0,-3.3 2.7,-6 6,-6z" />
+    <path
+        android:fillColor="#0D0D12"
+        android:pathData="M27,37h54v34H27z" />
+    <!-- Tombol play -->
+    <path
+        android:fillColor="#22D3EE"
+        android:pathData="M47,43l20,11 -20,11z" />
+    <!-- Kilau prompt / spark -->
+    <path
+        android:fillColor="#E9D5FF"
+        android:pathData="M80,16l2.2,5.3L87.5,23.5l-5.3,2.2L80,31l-2.2,-5.3 -5.3,-2.2 5.3,-2.2z" />
+</vector>
