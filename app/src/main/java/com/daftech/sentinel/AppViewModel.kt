@@ -18,7 +18,7 @@ import java.util.TimeZone
 
 enum class SentinelMode { AGRESIF, AMAN }
 
-class AppViewModel : ViewModel {
+class AppViewModel : ViewModel() {
     var mode by mutableStateOf(SentinelMode.AMAN)
         private set
     var isLoading by mutableStateOf(false)
