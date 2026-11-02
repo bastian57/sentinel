@@ -68,6 +68,12 @@ jobs:
           echo "/tmp/gradle-8.7/bin" >> "$GITHUB_PATH"
           /tmp/gradle-8.7/bin/gradle --version | head -n 5
 
+      - name: Unit test gate v2 (VirtualEngine — harus lolos sebelum build APK)
+        run: |
+          set -e
+          gradle testDebugUnitTest 2>&1 | tee test.log
+          echo "UNIT TEST GATE LOLOS"
+
       - name: Build debug APK (log ke build.log)
         run: |
           set -e
