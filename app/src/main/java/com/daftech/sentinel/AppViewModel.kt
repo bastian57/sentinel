@@ -10,7 +10,16 @@ import com.daftech.sentinel.engine.Candle
 import com.daftech.sentinel.engine.RobotReplay
 import com.daftech.sentinel.engine.SignalResult
 import com.daftech.sentinel.engine.UserReplay
+import com.daftech.sentinel.engine.PaperPosition
+import com.daftech.sentinel.engine.PaperTrade
 import com.daftech.sentinel.engine.buyHoldValue
+import com.daftech.sentinel.engine.paperBuyCost
+import com.daftech.sentinel.engine.paperBuyFill
+import com.daftech.sentinel.engine.paperQtyByRisk
+import com.daftech.sentinel.engine.paperSellFill
+import com.daftech.sentinel.engine.paperSellProceeds
+import com.daftech.sentinel.engine.paperTradeReturn
+import com.daftech.sentinel.engine.paperUnrealizedFraction
 import com.daftech.sentinel.engine.checkHalt
 import com.daftech.sentinel.engine.computeSignal
 import com.daftech.sentinel.engine.fetchCandles4h
@@ -65,12 +74,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var runningOpen by mutableStateOf<Double?>(null)
         private set
+    var runningClose by mutableStateOf<Double?>(null)
+        private set
+    // --- Paper trading v3: LONG SPOT ONLY, PAPER ONLY. Bukan order nyata. ---
+    var paperCash by mutableStateOf(10000.0)
+        private set
+    var paperPosition by mutableStateOf<PaperPosition?>(null)
+        private set
+    var paperTrades by mutableStateOf<List<PaperTrade>>(emptyList())
+        private set
+    var paperRiskPct by mutableStateOf(1.0)
+        private set
+    var paperNotice by mutableStateOf<String?>(null)
+        private set
     var showLewatiReasons by mutableStateOf(false)
         private set
     var virtualNotice by mutableStateOf<String?>(null)
         private set
 
     private val prefs = app.getSharedPreferences("sentinel_v2_virtual", 0)
+    private val paperPrefs = app.getSharedPreferences("sentinel_v3_paper", 0)
+
+    init { loadPaper() }
 
     private fun loadDecisions(): MutableMap<String, String> {
         val map = HashMap<String, String>()
@@ -169,6 +194,119 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+
+    // ---------- Paper trading v3 ----------
+    private fun loadPaper() {
+        try {
+            paperCash = paperPrefs.getString("cash", "10000.0")?.toDoubleOrNull() ?: 10000.0
+            paperRiskPct = paperPrefs.getString("riskPct", "1.0")?.toDoubleOrNull() ?: 1.0
+            val ep = paperPrefs.getString("posEntry", null)?.toDoubleOrNull()
+            val qty = paperPrefs.getString("posQty", null)?.toDoubleOrNull()
+            val stop = paperPrefs.getString("posStop", null)?.toDoubleOrNull()
+            val label = paperPrefs.getString("posLabel", "") ?: ""
+            paperPosition = if (ep != null && qty != null && stop != null) PaperPosition(ep, qty, stop, label) else null
+            val tradesObj = JSONObject(paperPrefs.getString("trades", "[]") ?: "[]")
+            val arr = tradesObj.optJSONArray("list")
+            val list = ArrayList<PaperTrade>()
+            if (arr != null) {
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    list.add(PaperTrade(o.getDouble("entry"), o.getDouble("exit"), o.getDouble("qty"), o.getDouble("ret"), o.optString("reason", "")))
+                }
+            }
+            paperTrades = list
+        } catch (_: Exception) {
+            paperCash = 10000.0; paperPosition = null; paperTrades = emptyList()
+        }
+    }
+
+    private fun savePaper() {
+        try {
+            val e = paperPrefs.edit()
+            e.putString("cash", paperCash.toString())
+            e.putString("riskPct", paperRiskPct.toString())
+            val pos = paperPosition
+            if (pos != null) {
+                e.putString("posEntry", pos.entryFillPrice.toString())
+                e.putString("posQty", pos.qty.toString())
+                e.putString("posStop", pos.stopPrice.toString())
+                e.putString("posLabel", pos.entryLabel)
+            } else {
+                e.remove("posEntry"); e.remove("posQty"); e.remove("posStop"); e.remove("posLabel")
+            }
+            val obj = JSONObject(); val arr = org.json.JSONArray()
+            for (tr in paperTrades) {
+                val o = JSONObject()
+                o.put("entry", tr.entryFillPrice); o.put("exit", tr.exitFillPrice)
+                o.put("qty", tr.qty); o.put("ret", tr.returnFraction); o.put("reason", tr.reason)
+                arr.put(o)
+            }
+            obj.put("list", arr)
+            e.putString("trades", obj.toString())
+            e.apply()
+        } catch (_: Exception) {
+        }
+    }
+
+    fun selectPaperRiskPct(p: Double) { paperRiskPct = p; savePaper() }
+
+    fun paperBuy() {
+        val sig = signal ?: run { paperNotice = "PAPER: refresh sinyal dulu."; return }
+        if (paperPosition != null) { paperNotice = "PAPER: sudah ada posisi terbuka. Jual dulu sebelum BUY baru (1 posisi)."; return }
+        val action = if (mode == SentinelMode.AGRESIF) sig.aggressiveAction else sig.safeAction
+        if (!action.startsWith("LONG")) { paperNotice = "PAPER: perintah sekarang bukan LONG (" + action + "), jadi tidak ada BUY paper."; return }
+        val entryRef = runningOpen ?: sig.lastClose
+        val qty = paperQtyByRisk(paperCash, entryRef, sig.donchianLow, paperRiskPct / 100.0)
+        if (qty <= 0.0) { paperNotice = "PAPER: ukuran posisi 0 — stop Donchian low harus di bawah harga entry."; return }
+        val fill = paperBuyFill(entryRef)
+        val cost = paperBuyCost(qty, fill)
+        if (cost > paperCash) { paperNotice = "PAPER: cash tidak cukup untuk ukuran posisi ini."; return }
+        paperCash -= cost
+        paperPosition = PaperPosition(fill, qty, sig.donchianLow, "BUY paper")
+        paperNotice = "PAPER BUY: " + qty.toString() + " BTC di fill " + fill.toString() + " (acuan " + entryRef.toString() + ", fee+slippage sudah dipotong). BUKAN order nyata."
+        savePaper()
+    }
+
+    fun paperSellManual() {
+        val pos = paperPosition ?: run { paperNotice = "PAPER: tidak ada posisi terbuka untuk dijual."; return }
+        val exitRef = runningClose ?: lastClosedClose ?: run { paperNotice = "PAPER: tidak ada harga acuan untuk SELL."; return }
+        val fill = paperSellFill(exitRef)
+        val proceeds = paperSellProceeds(pos.qty, fill)
+        paperCash += proceeds
+        val ret = paperTradeReturn(pos.entryFillPrice, fill)
+        paperTrades = paperTrades + PaperTrade(pos.entryFillPrice, fill, pos.qty, ret, "SELL manual")
+        paperPosition = null
+        paperNotice = "PAPER SELL manual: keluar di fill " + fill.toString() + ", return " + ret.toString() + ". BUKAN order nyata."
+        savePaper()
+    }
+
+    private fun paperAutoExit(sig: SignalResult, runOpen: Double?) {
+        val pos = paperPosition ?: return
+        val action = sig.aggressiveAction
+        if (action != "FLAT / EXIT") return
+        val exitRef = runOpen ?: return
+        val fill = paperSellFill(exitRef)
+        val proceeds = paperSellProceeds(pos.qty, fill)
+        paperCash += proceeds
+        val ret = paperTradeReturn(pos.entryFillPrice, fill)
+        paperTrades = paperTrades + PaperTrade(pos.entryFillPrice, fill, pos.qty, ret, "EXIT Donchian low (otomatis)")
+        paperPosition = null
+        paperNotice = "PAPER EXIT otomatis: close tembus Donchian low, posisi ditutup di open berikutnya (fill " + fill.toString() + "). BUKAN order nyata."
+        savePaper()
+    }
+
+    fun resetPaper() {
+        paperCash = 10000.0; paperPosition = null; paperTrades = emptyList()
+        paperNotice = "PAPER: saldo di-reset ke \$10.000 virtual, posisi dan riwayat paper dihapus."
+        savePaper()
+    }
+
+    fun paperUnrealized(): Double? {
+        val pos = paperPosition ?: return null
+        val ref = runningClose ?: lastClosedClose ?: return null
+        return paperUnrealizedFraction(pos.entryFillPrice, ref)
+    }
+
     fun refreshData() {
         if (isLoading) return
         isLoading = true
@@ -181,12 +319,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     val sig = computeSignal(candles)
                     val closed: List<Candle> = if (candles.size >= 2) candles.dropLast(1) else candles
                     val runOpen: Double? = if (candles.size >= 2) candles.last().open else null
-                    Triple(sig, closed, runOpen)
+                    val runClose: Double? = if (candles.size >= 2) candles.last().close else null
+                    RefreshPaper(sig, closed, runOpen, runClose)
                 }
-                val sig = result.first
-                val closed = result.second
-                val runOpen = result.third
+                val sig = result.sig
+                val closed = result.closed
+                val runOpen = result.runOpen
                 signal = sig
+                runningClose = result.runClose
                 lastClosedClose = closed.lastOrNull()?.close
                 lastClosedTime = closed.lastOrNull()?.openTime
                 runningOpen = runOpen
@@ -210,6 +350,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     userAman = null
                     buyHoldEquity = null
                 }
+                if (halt == null) paperAutoExit(sig, runOpen)
                 val fmtFull = SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID"))
                 fmtFull.timeZone = TimeZone.getTimeZone("Asia/Jakarta")
                 lastUpdated = "Update: " + fmtFull.format(Date()) + " WIB"
@@ -221,3 +362,5 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 }
+
+private data class RefreshPaper(val sig: SignalResult, val closed: List<Candle>, val runOpen: Double?, val runClose: Double?)

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.daftech.sentinel.engine.paperBuyCost
+import com.daftech.sentinel.engine.paperBuyFill
+import com.daftech.sentinel.engine.paperQtyByRisk
 import com.daftech.sentinel.engine.VirtualTrade
 import com.daftech.sentinel.ui.SentinelTheme
 import com.daftech.sentinel.ui.SnCyan
@@ -139,19 +143,19 @@ private fun SentinelScreen(vm: AppViewModel = viewModel()) {
     Column(
         Modifier.fillMaxSize().verticalScroll(scroll).padding(16.dp)
     ) {
-        Text("SENTINEL v2", color = SnGold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text("SENTINEL v3", color = SnGold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Text(
-            "BTC/USDT  •  4 jam  •  Spot only  •  VIRTUAL ONLY",
+            "BTC/USDT  •  4 jam  •  Spot long only  •  PAPER ONLY",
             color = SnTextDim, fontSize = 13.sp
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            "SIMULATOR DISIPLIN — semua angka di tab Virtual/Disiplin adalah VIRTUAL. App ini TIDAK trading uang asli, TIDAK kirim order, dan TIDAK minta API key.",
+            "PERINTAH + PAPER TRADING — tab Sinyal sekarang memberi perintah BUY / SELL-exit / TUNGGU dan mengeksekusi PAPER (virtual) di dalam app. App ini BELUM trading uang asli, BELUM testnet, TIDAK kirim order nyata, TIDAK minta API key, TANPA short/leverage/futures.",
             color = SnCyan, fontSize = 13.sp
         )
         Spacer(Modifier.height(12.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("Sinyal", "Virtual", "Disiplin", "Backtest", "Tentang").forEachIndexed { idx, title ->
                 val selected = vm.selectedTab == idx
                 if (selected) {
@@ -159,12 +163,12 @@ private fun SentinelScreen(vm: AppViewModel = viewModel()) {
                         onClick = { vm.selectTab(idx) },
                         colors = ButtonDefaults.buttonColors(containerColor = SnGold, contentColor = Color(0xFF1A1200)),
                         modifier = Modifier.weight(1f)
-                    ) { Text(title, fontSize = 11.sp) }
+                    ) { Text(title, fontSize = 12.sp, maxLines = 1, softWrap = false) }
                 } else {
                     OutlinedButton(
                         onClick = { vm.selectTab(idx) },
                         modifier = Modifier.weight(1f)
-                    ) { Text(title, color = SnText, fontSize = 11.sp) }
+                    ) { Text(title, color = SnText, fontSize = 12.sp, maxLines = 1, softWrap = false) }
                 }
             }
         }
@@ -198,7 +202,7 @@ private fun SentinelScreen(vm: AppViewModel = viewModel()) {
             4 -> AboutTab()
         }
         Spacer(Modifier.height(16.dp))
-        Text("SENTINEL v2.0.0  •  by DAFTECH  •  Virtual only, paper only", color = SnTextDim, fontSize = 12.sp)
+        Text("SENTINEL v3.0.0  •  by DAFTECH  •  Paper only, long spot only, no short", color = SnTextDim, fontSize = 12.sp)
     }
 }
 
@@ -326,6 +330,8 @@ private fun SignalTab(vm: AppViewModel) {
             "Catatan: sinyal dihitung dari candle yang sudah tutup, bukan candle berjalan, supaya tidak repaint. Sinyal ini bukan ramalan akurat dan bukan saran beli/jual.",
             color = SnTextDim, fontSize = 12.sp
         )
+        Spacer(Modifier.height(12.dp))
+        PaperDesk(vm)
     } else if (!vm.isLoading) {
         Text("Belum ada data. Tekan Refresh sinyal.", color = SnTextDim, fontSize = 14.sp)
     }
@@ -541,6 +547,7 @@ private fun BacktestTab() {
             Text("Program otonom 2 Nov 2026 (V3, Kronos vol, sintetis):", color = SnText, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text("• V3 skip ATR ekstrem, Kronos volatilitas, dan pabrik sintetis Kronos semuanya GUGUR di kill gate. Tidak ada filter baru di v2.", color = SnText, fontSize = 13.sp)
             Text("• v2 memakai HANYA G dan Aman yang sudah ada. Itu hasil yang sah, bukan kegagalan.", color = SnText, fontSize = 13.sp)
+            Text("• Short cermin G (2 Nov 2026, 4h, 1x, fee 0,1%): in -80,5% PF 0,70, out -40,9% PF 0,74 — GAGAL, jadi v3 tidak punya tombol short.", color = SnText, fontSize = 13.sp)
             Spacer(Modifier.height(10.dp))
             Text(
                 "Peringatan: angka full pemenang kena winner's curse karena dipilih dari banyak varian. Pakai angka out-of-sample sebagai ekspektasi jujur, bukan angka full.",
@@ -557,12 +564,14 @@ private fun AboutTab() {
         colors = CardDefaults.cardColors(containerColor = SnSurface)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("Tentang SENTINEL v2.0.0 — Simulator Disiplin", color = SnGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Tentang SENTINEL v3.0.0 — Perintah + Paper Trading", color = SnGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
             Text("• Pasangan: BTC/USDT spot saja.", color = SnText, fontSize = 13.sp)
             Text("• Timeframe: 4 jam.", color = SnText, fontSize = 13.sp)
             Text("• Tanpa leverage, tanpa futures, tanpa short.", color = SnText, fontSize = 13.sp)
-            Text("• Tanpa API key dan tanpa order ke exchange. Semua VIRTUAL.", color = SnText, fontSize = 13.sp)
+            Text("• Paper trading v3: BUY/SELL paper di dalam app, fee 0,1% + slippage 0,05% per sisi. BUKAN order nyata.", color = SnText, fontSize = 13.sp)
+            Text("• Testnet dan real BELUM ada di build ini — tahap berikutnya, real butuh gas terpisah lagi.", color = SnText, fontSize = 13.sp)
+            Text("• TANPA short/futures/leverage. Riset short cermin G GUGUR (out -40,9%, PF 0,74) dan tidak dipakai.", color = SnText, fontSize = 13.sp)
             Text("• Data: Binance Vision (publik) dengan cadangan Binance US.", color = SnText, fontSize = 13.sp)
             Text("• Sinyal: Donchian20 + MA20>MA50, exit Donchian low. Mode Aman tambah ADX14 > 25 dan naik.", color = SnText, fontSize = 13.sp)
             Text("• v2 TIDAK memakai V3 (skip ATR) dan TIDAK memakai Kronos — keduanya gugur di pengujian otonom 2 Nov 2026.", color = SnText, fontSize = 13.sp)
@@ -576,6 +585,120 @@ private fun AboutTab() {
                 "Risiko: backtest bukan jaminan masa depan. Drawdown historis masih puluhan persen. Jangan pakai uang yang tidak siap hilang, dan jangan jadikan sinyal ini satu-satunya dasar keputusan.",
                 color = SnRed, fontSize = 13.sp
             )
+        }
+    }
+}
+
+@Composable
+private fun PaperDesk(vm: AppViewModel) {
+    val s = vm.signal
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SnSurface)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("PERINTAH TRADING — PAPER ONLY (spot long)", color = SnGold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text("SELL di sini = jual posisi long paper yang sedang dipegang. TIDAK ADA short.", color = SnTextDim, fontSize = 12.sp)
+            Spacer(Modifier.height(10.dp))
+            val pos = vm.paperPosition
+            val action = if (s != null) (if (vm.mode == SentinelMode.AGRESIF) s.aggressiveAction else s.safeAction) else "-"
+            val command = when {
+                pos != null -> "PEGANG — SELL saat EXIT Donchian low atau SELL manual"
+                s != null && action.startsWith("LONG") -> "BUY (paper)"
+                s != null && action.startsWith("FLAT") -> "SELL-EXIT (tidak ada posisi paper, jadi tidak ada yang dijual)"
+                else -> "TUNGGU — tidak ada BUY/SELL"
+            }
+            Text(command, color = when {
+                command.startsWith("BUY") -> SnGreen
+                command.startsWith("SELL") -> SnRed
+                else -> SnGold
+            }, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            if (s != null) {
+                RowLine("Entry acuan (open berjalan)", vm.runningOpen?.let { fmtUsd(it) } ?: "-")
+                RowLine("Stop (Donchian low)", fmtUsd(s.donchianLow))
+                RowLine("Harga berjalan acuan", vm.runningClose?.let { fmtUsd(it) } ?: "-")
+                Spacer(Modifier.height(6.dp))
+                Text("Risiko per trade paper:", color = SnTextDim, fontSize = 12.sp)
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(0.5, 1.0, 2.0).forEach { pct ->
+                        val sel = vm.paperRiskPct == pct
+                        if (sel) {
+                            Button(onClick = { vm.selectPaperRiskPct(pct) }, colors = ButtonDefaults.buttonColors(containerColor = SnGold, contentColor = Color(0xFF1A1200)), modifier = Modifier.weight(1f)) { Text(pct.toString() + "%", fontSize = 12.sp) }
+                        } else {
+                            OutlinedButton(onClick = { vm.selectPaperRiskPct(pct) }, modifier = Modifier.weight(1f)) { Text(pct.toString() + "%", color = SnText, fontSize = 12.sp) }
+                        }
+                    }
+                }
+                if (pos == null && action.startsWith("LONG")) {
+                    val entryRef = vm.runningOpen ?: s.lastClose
+                    val qty = paperQtyByRisk(vm.paperCash, entryRef, s.donchianLow, vm.paperRiskPct / 100.0)
+                    val fill = paperBuyFill(entryRef)
+                    val cost = paperBuyCost(qty, fill)
+                    Spacer(Modifier.height(6.dp))
+                    RowLine("Ukuran paper (risiko " + vm.paperRiskPct.toString() + "%)", String.format(Locale.US, "%.5f BTC", qty))
+                    RowLine("Biaya paper (fill+fee)", fmtUsd(cost))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { vm.paperBuy() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SnGreen, contentColor = Color(0xFF062A1A))
+                ) { Text("BUY (paper)", fontSize = 13.sp) }
+                Button(
+                    onClick = { vm.paperSellManual() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SnRed)
+                ) { Text("SELL (paper)", fontSize = 13.sp) }
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = { vm.resetPaper() }, modifier = Modifier.fillMaxWidth()) {
+                Text("Reset paper ke $10.000", color = SnText, fontSize = 13.sp)
+            }
+            vm.paperNotice?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = SnCyan, fontSize = 13.sp)
+            }
+        }
+    }
+    Spacer(Modifier.height(12.dp))
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SnSurface)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Saldo & posisi PAPER", color = SnGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            RowLine("Cash paper", fmtUsd(vm.paperCash))
+            val pos2 = vm.paperPosition
+            if (pos2 != null) {
+                RowLine("Posisi long paper", String.format(Locale.US, "%.5f BTC", pos2.qty))
+                RowLine("Entry fill paper", fmtUsd(pos2.entryFillPrice))
+                RowLine("Stop paper", fmtUsd(pos2.stopPrice))
+                val unreal = vm.paperUnrealized()
+                if (unreal != null) RowLine("Unrealized paper", fmtPct(unreal * 100), if (unreal >= 0) SnGreen else SnRed)
+                Text("Posisi ini auto-exit di refresh berikutnya kalau close tembus Donchian low (exit di open berikutnya).", color = SnTextDim, fontSize = 12.sp)
+            } else {
+                RowLine("Posisi long paper", "TIDAK ADA")
+            }
+            Spacer(Modifier.height(10.dp))
+            Text("Trade paper terakhir (maks 5)", color = SnGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            if (vm.paperTrades.isEmpty()) {
+                Text("Belum ada trade paper.", color = SnTextDim, fontSize = 13.sp)
+            } else {
+                vm.paperTrades.takeLast(5).reversed().forEach { tr ->
+                    RowLine(
+                        fmtUsd(tr.entryFillPrice) + " -> " + fmtUsd(tr.exitFillPrice) + " (" + tr.reason + ")",
+                        fmtPct(tr.returnFraction * 100),
+                        if (tr.returnFraction >= 0) SnGreen else SnRed
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text("Semua order di kartu ini VIRTUAL dengan fee 0,1% + slippage 0,05% per sisi. Tidak ada API key, tidak ada order ke exchange. Testnet/real belum ada di build ini.", color = SnTextDim, fontSize = 12.sp)
         }
     }
 }
