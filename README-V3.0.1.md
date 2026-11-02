@@ -1,6 +1,6 @@
-# SENTINEL v3.0.0 — Perintah + Paper Trading (PAPER ONLY)
+# SENTINEL v3.0.1 — Perintah + Paper Trading (PAPER ONLY)
 
-Paket: com.daftech.sentinel, versionCode 3, versionName 3.0.0.
+Paket: com.daftech.sentinel, versionCode 4, versionName 3.0.1.
 Update dari v2.0.0 dengan keystore tetap yang sama, jadi install sebagai update
 (tanpa uninstall) selama sertifikat APK cocok dengan kunci tetap Putra.
 
@@ -36,3 +36,11 @@ Update dari v2.0.0 dengan keystore tetap yang sama, jadi install sebagai update
 - Gerbang keystore + sertifikat APK di workflow harus lolos, sama seperti v1/v2.
 - File workflow v3: workflow-sentinel-v3.yml di root zip ini, disalin ke
   .github/workflows/sentinel.yml saat push.
+
+## Perubahan v3.0.1 (hanya UI tab)
+- Bar tab diganti dari Button Material3 menjadi chip klik custom (padding
+  horizontal 16dp, tanpa lebar minimum Button). Akar bug v3.0.0: Button di Row
+  scroll masih memakai weight(1f) + padding/lebar minimum Material3, sehingga
+  teks terpotong jadi "Siny/Virt/Disi/Bac/Ten".
+- Tidak ada perubahan mesin: sinyal, PaperEngine, dan paper trading sama
+  persis dengan v3.0.0.

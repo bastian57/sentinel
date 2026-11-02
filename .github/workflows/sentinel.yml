@@ -68,7 +68,7 @@ jobs:
           echo "/tmp/gradle-8.7/bin" >> "$GITHUB_PATH"
           /tmp/gradle-8.7/bin/gradle --version | head -n 5
 
-      - name: Unit test gate v3 (VirtualEngine + PaperEngine — harus lolos sebelum build APK)
+      - name: Unit test gate v3.0.1 (VirtualEngine + PaperEngine — harus lolos sebelum build APK)
         run: |
           set -e
           gradle testDebugUnitTest 2>&1 | tee test.log

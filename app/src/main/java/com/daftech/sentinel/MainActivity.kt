@@ -4,14 +4,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -155,20 +161,27 @@ private fun SentinelScreen(vm: AppViewModel = viewModel()) {
         )
         Spacer(Modifier.height(12.dp))
 
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        // Chip tab custom (BUKAN Button): Button Material3 punya padding dan
+        // lebar minimum yang memotong teks ("Siny", "Virt") walau di Row scroll.
+        // Chip ini lebarnya mengikuti teks + padding kecil, jadi label utuh.
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("Sinyal", "Virtual", "Disiplin", "Backtest", "Tentang").forEachIndexed { idx, title ->
                 val selected = vm.selectedTab == idx
-                if (selected) {
-                    Button(
-                        onClick = { vm.selectTab(idx) },
-                        colors = ButtonDefaults.buttonColors(containerColor = SnGold, contentColor = Color(0xFF1A1200)),
-                        modifier = Modifier.weight(1f)
-                    ) { Text(title, fontSize = 12.sp, maxLines = 1, softWrap = false) }
-                } else {
-                    OutlinedButton(
-                        onClick = { vm.selectTab(idx) },
-                        modifier = Modifier.weight(1f)
-                    ) { Text(title, color = SnText, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+                Box(
+                    Modifier.clip(RoundedCornerShape(24.dp))
+                        .background(if (selected) SnGold else SnSurface)
+                        .border(1.dp, if (selected) SnGold else SnTextDim, RoundedCornerShape(24.dp))
+                        .clickable { vm.selectTab(idx) }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        title,
+                        color = if (selected) Color(0xFF1A1200) else SnText,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
         }
@@ -202,7 +215,7 @@ private fun SentinelScreen(vm: AppViewModel = viewModel()) {
             4 -> AboutTab()
         }
         Spacer(Modifier.height(16.dp))
-        Text("SENTINEL v3.0.0  •  by DAFTECH  •  Paper only, long spot only, no short", color = SnTextDim, fontSize = 12.sp)
+        Text("SENTINEL v3.0.1  •  by DAFTECH  •  Paper only, long spot only, no short", color = SnTextDim, fontSize = 12.sp)
     }
 }
 
@@ -564,7 +577,7 @@ private fun AboutTab() {
         colors = CardDefaults.cardColors(containerColor = SnSurface)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("Tentang SENTINEL v3.0.0 — Perintah + Paper Trading", color = SnGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Tentang SENTINEL v3.0.1 — Perintah + Paper Trading", color = SnGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
             Text("• Pasangan: BTC/USDT spot saja.", color = SnText, fontSize = 13.sp)
             Text("• Timeframe: 4 jam.", color = SnText, fontSize = 13.sp)
